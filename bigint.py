@@ -1,99 +1,65 @@
 #!/usr/bin/env python3
-"""bigint — Arbitrary precision integer arithmetic from scratch. Zero deps."""
+"""bigint - Big integer operations (demo without Python's built-in)."""
+import sys
 
 class BigInt:
-    def __init__(self, val=0):
-        if isinstance(val, str):
-            self.negative = val.startswith('-')
-            self.digits = [int(c) for c in val.lstrip('-').lstrip('0') or '0']
-        elif isinstance(val, int):
-            self.negative = val < 0
-            self.digits = [int(c) for c in str(abs(val))]
-        else:
-            self.digits = list(val.digits)
-            self.negative = val.negative
-
-    def __repr__(self): return ('-' if self.negative and self.digits != [0] else '') + ''.join(map(str, self.digits))
-    def __eq__(self, other): return str(self) == str(BigInt(other) if isinstance(other, (int,str)) else other)
-
-    def _cmp_abs(self, other):
-        if len(self.digits) != len(other.digits):
-            return 1 if len(self.digits) > len(other.digits) else -1
-        for a, b in zip(self.digits, other.digits):
-            if a != b: return 1 if a > b else -1
+    def __init__(self, val="0"):
+        if isinstance(val, list): self.digits=val; self.neg=False; return
+        s=str(val).strip(); self.neg=s.startswith("-"); s=s.lstrip("-+")
+        self.digits=[int(c) for c in s]  # most significant first
+    def __repr__(self): 
+        s="".join(map(str,self.digits)).lstrip("0") or "0"
+        return ("-" if self.neg and s!="0" else "")+s
+    def _cmp(a,b):
+        if len(a.digits)!=len(b.digits): return 1 if len(a.digits)>len(b.digits) else -1
+        for x,y in zip(a.digits,b.digits):
+            if x!=y: return 1 if x>y else -1
         return 0
-
-    def _add_abs(self, other):
-        a, b = self.digits[::-1], other.digits[::-1]
-        result, carry = [], 0
-        for i in range(max(len(a), len(b))):
-            s = carry + (a[i] if i < len(a) else 0) + (b[i] if i < len(b) else 0)
-            result.append(s % 10)
-            carry = s // 10
-        if carry: result.append(carry)
-        r = BigInt(0)
-        r.digits = result[::-1]
-        return r
-
-    def _sub_abs(self, other):
-        if self._cmp_abs(other) < 0:
-            r = other._sub_abs(self)
-            r.negative = True
-            return r
-        a, b = self.digits[::-1], other.digits[::-1]
-        result, borrow = [], 0
-        for i in range(len(a)):
-            d = a[i] - borrow - (b[i] if i < len(b) else 0)
-            borrow = 1 if d < 0 else 0
-            result.append(d % 10)
-        while len(result) > 1 and result[-1] == 0: result.pop()
-        r = BigInt(0)
-        r.digits = result[::-1]
-        return r
-
-    def __add__(self, other):
-        other = BigInt(other) if isinstance(other, (int,str)) else other
-        if self.negative == other.negative:
-            r = self._add_abs(other)
-            r.negative = self.negative
-        elif self._cmp_abs(other) >= 0:
-            r = self._sub_abs(other)
-            r.negative = self.negative
-        else:
-            r = other._sub_abs(self)
-            r.negative = other.negative
-        return r
-
-    def __mul__(self, other):
-        other = BigInt(other) if isinstance(other, (int,str)) else other
-        a, b = self.digits[::-1], other.digits[::-1]
-        result = [0] * (len(a) + len(b))
-        for i in range(len(a)):
-            for j in range(len(b)):
-                result[i+j] += a[i] * b[j]
-                result[i+j+1] += result[i+j] // 10
-                result[i+j] %= 10
-        while len(result) > 1 and result[-1] == 0: result.pop()
-        r = BigInt(0)
-        r.digits = result[::-1]
-        r.negative = self.negative != other.negative and r.digits != [0]
-        return r
-
+    def __eq__(s,o): return str(s)==str(BigInt(o) if not isinstance(o,BigInt) else o)
+    def _add_abs(a,b):
+        r=[]; carry=0; ad=a.digits[::-1]; bd=b.digits[::-1]
+        for i in range(max(len(ad),len(bd))):
+            s=(ad[i] if i<len(ad) else 0)+(bd[i] if i<len(bd) else 0)+carry
+            r.append(s%10); carry=s//10
+        if carry: r.append(carry)
+        return BigInt(r[::-1])
+    def _sub_abs(a,b):
+        if a._cmp(b)<0: r=b._sub_abs(a); r.neg=True; return r
+        r=[]; borrow=0; ad=a.digits[::-1]; bd=b.digits[::-1]
+        for i in range(len(ad)):
+            d=ad[i]-(bd[i] if i<len(bd) else 0)-borrow
+            if d<0: d+=10; borrow=1
+            else: borrow=0
+            r.append(d)
+        while len(r)>1 and r[-1]==0: r.pop()
+        return BigInt(r[::-1])
+    def __add__(a,b):
+        b=b if isinstance(b,BigInt) else BigInt(b)
+        if a.neg==b.neg: r=a._add_abs(b); r.neg=a.neg; return r
+        return a._sub_abs(b) if not a.neg else b._sub_abs(a)
+    def __mul__(a,b):
+        b=b if isinstance(b,BigInt) else BigInt(b)
+        r=[0]*(len(a.digits)+len(b.digits)); ad=a.digits[::-1]; bd=b.digits[::-1]
+        for i,x in enumerate(ad):
+            for j,y in enumerate(bd): r[i+j]+=x*y
+        for i in range(len(r)-1): r[i+1]+=r[i]//10; r[i]%=10
+        while len(r)>1 and r[-1]==0: r.pop()
+        res=BigInt(r[::-1]); res.neg=a.neg!=b.neg; return res
     def factorial(n):
-        result = BigInt(1)
-        for i in range(2, n+1):
-            result = result * i
-        return result
+        r=BigInt("1")
+        for i in range(2,n+1): r=r*BigInt(str(i))
+        return r
+    def power(base,exp):
+        r=BigInt("1"); b=base
+        while exp>0:
+            if exp%2: r=r*b
+            b=b*b; exp//=2
+        return r
 
-def main():
-    a = BigInt("123456789012345678901234567890")
-    b = BigInt("987654321098765432109876543210")
-    print(f"a = {a}")
-    print(f"b = {b}")
-    print(f"a + b = {a + b}")
-    print(f"a * b = {a * b}")
-    print(f"50! = {BigInt.factorial(50)}")
-    print(f"100! has {len(BigInt.factorial(100).digits)} digits")
-
-if __name__ == "__main__":
-    main()
+if __name__=="__main__":
+    if len(sys.argv)<2: print("Usage: bigint.py <add|mul|fact|pow> args..."); sys.exit(1)
+    cmd=sys.argv[1]
+    if cmd=="add": print(BigInt(sys.argv[2])+BigInt(sys.argv[3]))
+    elif cmd=="mul": print(BigInt(sys.argv[2])*BigInt(sys.argv[3]))
+    elif cmd=="fact": print(BigInt.factorial(int(sys.argv[2])))
+    elif cmd=="pow": print(BigInt.power(BigInt(sys.argv[2]),int(sys.argv[3])))

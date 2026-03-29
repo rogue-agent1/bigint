@@ -1,13 +1,11 @@
 # bigint
 
-Big Integer Arithmetic. Zero-dependency, single-file Python CLI.
+bigint: Arbitrary-precision integer arithmetic from digit arrays.
+
+Single-file, zero-dependency Python CLI.
 
 ## Usage
 
 ```bash
-python3 bigint.py --help
+python3 bigint.py test
 ```
-
-## License
-
-MIT

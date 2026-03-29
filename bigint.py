@@ -1,65 +1,63 @@
 #!/usr/bin/env python3
-"""bigint - Big integer operations (demo without Python's built-in)."""
+"""Big Integer - Arbitrary precision integer arithmetic from scratch."""
 import sys
 
 class BigInt:
     def __init__(self, val="0"):
-        if isinstance(val, list): self.digits=val; self.neg=False; return
-        s=str(val).strip(); self.neg=s.startswith("-"); s=s.lstrip("-+")
-        self.digits=[int(c) for c in s]  # most significant first
-    def __repr__(self): 
-        s="".join(map(str,self.digits)).lstrip("0") or "0"
-        return ("-" if self.neg and s!="0" else "")+s
-    def _cmp(a,b):
-        if len(a.digits)!=len(b.digits): return 1 if len(a.digits)>len(b.digits) else -1
-        for x,y in zip(a.digits,b.digits):
-            if x!=y: return 1 if x>y else -1
+        if isinstance(val, int): val = str(val)
+        self.neg = val.startswith("-"); val = val.lstrip("-")
+        self.digits = [int(c) for c in val.lstrip("0") or "0"]
+    def __repr__(self): return ("-" if self.neg and self.digits != [0] else "") + "".join(map(str, self.digits))
+    def _cmp(self, o):
+        if len(self.digits) != len(o.digits): return 1 if len(self.digits) > len(o.digits) else -1
+        for a, b in zip(self.digits, o.digits):
+            if a != b: return 1 if a > b else -1
         return 0
-    def __eq__(s,o): return str(s)==str(BigInt(o) if not isinstance(o,BigInt) else o)
-    def _add_abs(a,b):
-        r=[]; carry=0; ad=a.digits[::-1]; bd=b.digits[::-1]
-        for i in range(max(len(ad),len(bd))):
-            s=(ad[i] if i<len(ad) else 0)+(bd[i] if i<len(bd) else 0)+carry
-            r.append(s%10); carry=s//10
-        if carry: r.append(carry)
-        return BigInt(r[::-1])
-    def _sub_abs(a,b):
-        if a._cmp(b)<0: r=b._sub_abs(a); r.neg=True; return r
-        r=[]; borrow=0; ad=a.digits[::-1]; bd=b.digits[::-1]
-        for i in range(len(ad)):
-            d=ad[i]-(bd[i] if i<len(bd) else 0)-borrow
-            if d<0: d+=10; borrow=1
-            else: borrow=0
-            r.append(d)
-        while len(r)>1 and r[-1]==0: r.pop()
-        return BigInt(r[::-1])
-    def __add__(a,b):
-        b=b if isinstance(b,BigInt) else BigInt(b)
-        if a.neg==b.neg: r=a._add_abs(b); r.neg=a.neg; return r
-        return a._sub_abs(b) if not a.neg else b._sub_abs(a)
-    def __mul__(a,b):
-        b=b if isinstance(b,BigInt) else BigInt(b)
-        r=[0]*(len(a.digits)+len(b.digits)); ad=a.digits[::-1]; bd=b.digits[::-1]
-        for i,x in enumerate(ad):
-            for j,y in enumerate(bd): r[i+j]+=x*y
-        for i in range(len(r)-1): r[i+1]+=r[i]//10; r[i]%=10
-        while len(r)>1 and r[-1]==0: r.pop()
-        res=BigInt(r[::-1]); res.neg=a.neg!=b.neg; return res
+    def __add__(self, o):
+        if self.neg != o.neg:
+            if self.neg: return o._sub_abs(BigInt("".join(map(str, self.digits))))
+            else: return self._sub_abs(BigInt("".join(map(str, o.digits))))
+        a, b = self.digits[::-1], o.digits[::-1]
+        n = max(len(a), len(b)); result = []; carry = 0
+        for i in range(n):
+            s = carry + (a[i] if i < len(a) else 0) + (b[i] if i < len(b) else 0)
+            result.append(s % 10); carry = s // 10
+        if carry: result.append(carry)
+        r = BigInt("".join(map(str, reversed(result)))); r.neg = self.neg; return r
+    def _sub_abs(self, o):
+        cmp = self._cmp(o)
+        if cmp == 0: return BigInt("0")
+        if cmp < 0: r = o._sub_abs(BigInt("".join(map(str, self.digits)))); r.neg = True; return r
+        a, b = self.digits[::-1], o.digits[::-1]; result = []; borrow = 0
+        for i in range(len(a)):
+            d = a[i] - borrow - (b[i] if i < len(b) else 0)
+            if d < 0: d += 10; borrow = 1
+            else: borrow = 0
+            result.append(d)
+        return BigInt("".join(map(str, reversed(result))))
+    def __mul__(self, o):
+        a, b = self.digits[::-1], o.digits[::-1]
+        result = [0] * (len(a) + len(b))
+        for i in range(len(a)):
+            for j in range(len(b)):
+                result[i+j] += a[i] * b[j]
+                result[i+j+1] += result[i+j] // 10
+                result[i+j] %= 10
+        r = BigInt("".join(map(str, reversed(result)))); r.neg = self.neg != o.neg; return r
     def factorial(n):
-        r=BigInt("1")
-        for i in range(2,n+1): r=r*BigInt(str(i))
-        return r
-    def power(base,exp):
-        r=BigInt("1"); b=base
-        while exp>0:
-            if exp%2: r=r*b
-            b=b*b; exp//=2
-        return r
+        result = BigInt("1")
+        for i in range(2, n+1): result = result * BigInt(str(i))
+        return result
 
-if __name__=="__main__":
-    if len(sys.argv)<2: print("Usage: bigint.py <add|mul|fact|pow> args..."); sys.exit(1)
-    cmd=sys.argv[1]
-    if cmd=="add": print(BigInt(sys.argv[2])+BigInt(sys.argv[3]))
-    elif cmd=="mul": print(BigInt(sys.argv[2])*BigInt(sys.argv[3]))
-    elif cmd=="fact": print(BigInt.factorial(int(sys.argv[2])))
-    elif cmd=="pow": print(BigInt.power(BigInt(sys.argv[2]),int(sys.argv[3])))
+def main():
+    a = BigInt("123456789012345678901234567890")
+    b = BigInt("987654321098765432109876543210")
+    print("=== Big Integer ===\n")
+    print(f"a = {a}")
+    print(f"b = {b}")
+    print(f"a + b = {a + b}")
+    print(f"a * b = {a * b}")
+    print(f"\n100! = {BigInt.factorial(100)}")
+
+if __name__ == "__main__":
+    main()

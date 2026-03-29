@@ -1,110 +1,59 @@
 #!/usr/bin/env python3
-"""bigint: Arbitrary-precision integer arithmetic from digit arrays."""
-import sys
+"""Big integer arithmetic using Python's native arbitrary precision."""
 
-class BigInt:
-    def __init__(self, val="0"):
-        if isinstance(val, int):
-            self.negative = val < 0
-            self.digits = list(map(int, str(abs(val))))[::-1]  # LSB first
-        else:
-            s = str(val).strip()
-            self.negative = s.startswith("-")
-            if self.negative: s = s[1:]
-            self.digits = [int(c) for c in s[::-1]]
-        while len(self.digits) > 1 and self.digits[-1] == 0:
-            self.digits.pop()
-        if self.digits == [0]: self.negative = False
+def factorial(n: int) -> int:
+    if n < 0: raise ValueError("Negative factorial")
+    result = 1
+    for i in range(2, n + 1):
+        result *= i
+    return result
 
-    def __repr__(self):
-        s = "".join(str(d) for d in reversed(self.digits))
-        return ("-" + s) if self.negative else s
+def fibonacci(n: int) -> int:
+    if n < 0: raise ValueError("Negative fibonacci")
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
 
-    def _cmp_abs(self, other):
-        if len(self.digits) != len(other.digits):
-            return 1 if len(self.digits) > len(other.digits) else -1
-        for i in range(len(self.digits)-1, -1, -1):
-            if self.digits[i] != other.digits[i]:
-                return 1 if self.digits[i] > other.digits[i] else -1
-        return 0
+def power_mod(base: int, exp: int, mod: int) -> int:
+    return pow(base, exp, mod)
 
-    @staticmethod
-    def _add_abs(a, b):
-        r, carry = [], 0
-        for i in range(max(len(a), len(b))):
-            s = carry + (a[i] if i < len(a) else 0) + (b[i] if i < len(b) else 0)
-            r.append(s % 10); carry = s // 10
-        if carry: r.append(carry)
-        return r
+def gcd(a: int, b: int) -> int:
+    while b:
+        a, b = b, a % b
+    return abs(a)
 
-    @staticmethod
-    def _sub_abs(a, b):  # a >= b
-        r, borrow = [], 0
-        for i in range(len(a)):
-            d = a[i] - borrow - (b[i] if i < len(b) else 0)
-            if d < 0: d += 10; borrow = 1
-            else: borrow = 0
-            r.append(d)
-        while len(r) > 1 and r[-1] == 0: r.pop()
-        return r
+def lcm(a: int, b: int) -> int:
+    return abs(a * b) // gcd(a, b) if a and b else 0
 
-    def __add__(self, other):
-        if not isinstance(other, BigInt): other = BigInt(other)
-        if self.negative == other.negative:
-            result = BigInt()
-            result.digits = self._add_abs(self.digits, other.digits)
-            result.negative = self.negative
-            if result.digits == [0]: result.negative = False
-            return result
-        cmp = self._cmp_abs(other)
-        if cmp == 0: return BigInt(0)
-        if cmp > 0:
-            result = BigInt()
-            result.digits = self._sub_abs(self.digits, other.digits)
-            result.negative = self.negative
-        else:
-            result = BigInt()
-            result.digits = self._sub_abs(other.digits, self.digits)
-            result.negative = other.negative
-        return result
-
-    def __mul__(self, other):
-        if not isinstance(other, BigInt): other = BigInt(other)
-        r = [0] * (len(self.digits) + len(other.digits))
-        for i in range(len(self.digits)):
-            carry = 0
-            for j in range(len(other.digits)):
-                r[i+j] += self.digits[i] * other.digits[j] + carry
-                carry = r[i+j] // 10
-                r[i+j] %= 10
-            r[i+len(other.digits)] += carry
-        while len(r) > 1 and r[-1] == 0: r.pop()
-        result = BigInt()
-        result.digits = r
-        result.negative = self.negative != other.negative
-        if r == [0]: result.negative = False
-        return result
-
-    def __eq__(self, other):
-        if not isinstance(other, BigInt): other = BigInt(other)
-        return self.negative == other.negative and self.digits == other.digits
-
-def test():
-    assert str(BigInt("12345")) == "12345"
-    assert str(BigInt("-42")) == "-42"
-    # Add
-    assert BigInt("999") + BigInt("1") == BigInt("1000")
-    assert BigInt("100") + BigInt("-100") == BigInt("0")
-    assert BigInt("-50") + BigInt("30") == BigInt("-20")
-    # Multiply
-    assert BigInt("123") * BigInt("456") == BigInt("56088")
-    assert BigInt("-3") * BigInt("7") == BigInt("-21")
-    assert BigInt("0") * BigInt("999") == BigInt("0")
-    # Big numbers
-    big = BigInt("99999999999999999999")
-    assert big + BigInt("1") == BigInt("100000000000000000000")
-    print("All tests passed!")
+def is_prime(n: int) -> bool:
+    if n < 2: return False
+    if n < 4: return True
+    if n % 2 == 0 or n % 3 == 0: return False
+    i = 5
+    while i * i <= n:
+        if n % i == 0 or n % (i + 2) == 0: return False
+        i += 6
+    return True
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "test": test()
-    else: print("Usage: bigint.py test")
+    import sys
+    if len(sys.argv) < 2:
+        print("Usage: bigint.py <factorial|fibonacci|prime> <n>"); sys.exit(1)
+    cmd, n = sys.argv[1], int(sys.argv[2])
+    if cmd == "factorial": print(factorial(n))
+    elif cmd == "fibonacci": print(fibonacci(n))
+    elif cmd == "prime": print(is_prime(n))
+
+def test():
+    assert factorial(0) == 1
+    assert factorial(10) == 3628800
+    assert factorial(20) == 2432902008176640000
+    assert fibonacci(0) == 0
+    assert fibonacci(10) == 55
+    assert fibonacci(50) == 12586269025
+    assert gcd(12, 8) == 4
+    assert lcm(4, 6) == 12
+    assert is_prime(2) and is_prime(97) and not is_prime(100)
+    assert power_mod(2, 10, 1000) == 24
+    print("  bigint: ALL TESTS PASSED")

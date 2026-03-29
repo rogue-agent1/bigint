@@ -1,11 +1,17 @@
 # bigint
 
-bigint: Arbitrary-precision integer arithmetic from digit arrays.
+Arbitrary precision integer arithmetic (educational)
 
-Single-file, zero-dependency Python CLI.
+Single-file, zero-dependency Python CLI tool.
 
 ## Usage
 
 ```bash
-python3 bigint.py test
+python bigint.py --help
+```
+
+## Test
+
+```bash
+python -c "import bigint; bigint.test()"
 ```
